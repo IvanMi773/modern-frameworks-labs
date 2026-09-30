@@ -4,20 +4,24 @@ namespace App\Controller;
 
 use App\Dto\ClientPayload;
 use App\Entity\Client;
+use App\Entity\User;
 use App\Service\EntitySearchService;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class ClientsController extends AbstractController
 {
     #[Route('/clients', name: 'clients_index', methods: ['GET'])]
+    #[IsGranted('ROLE_MANAGER')]
     public function index(EntityManagerInterface $entityManager): JsonResponse
     {
         $clients = $entityManager->getRepository(Client::class)->findBy([], ['id' => 'ASC']);
@@ -28,6 +32,21 @@ final class ClientsController extends AbstractController
     #[Route('/clients/search', name: 'clients_search', methods: ['GET'])]
     public function search(Request $request, EntitySearchService $searchService): JsonResponse
     {
+        $scope = null;
+
+        if (!$this->isGranted('ROLE_MANAGER')) {
+            $user = $this->getUser();
+            $clientId = $user instanceof User ? $user->getClient()?->getId() : null;
+
+            if ($clientId === null) {
+                throw $this->createAccessDeniedException();
+            }
+
+            $scope = static function (QueryBuilder $queryBuilder) use ($clientId): void {
+                $queryBuilder->andWhere('e.id = :ownerId')->setParameter('ownerId', $clientId);
+            };
+        }
+
         $result = $searchService->search(Client::class, [
             'id' => ['expression' => 'e.id', 'type' => 'integer'],
             'firstName' => ['expression' => 'e.firstName', 'type' => 'string'],
@@ -35,7 +54,7 @@ final class ClientsController extends AbstractController
             'email' => ['expression' => 'e.email', 'type' => 'string'],
             'phone' => ['expression' => 'e.phone', 'type' => 'string', 'nullable' => true],
             'driverLicenseNumber' => ['expression' => 'e.driverLicenseNumber', 'type' => 'string'],
-        ], $request->query->all());
+        ], $request->query->all(), $scope);
 
         return $this->json([
             'items' => array_map(fn (Client $client): array => $this->toArray($client), $result['items']),
@@ -52,10 +71,13 @@ final class ClientsController extends AbstractController
             return $this->notFound();
         }
 
+        $this->assertCanAccess($client);
+
         return $this->json($this->toArray($client));
     }
 
     #[Route('/clients', name: 'clients_create', methods: ['POST'])]
+    #[IsGranted('ROLE_MANAGER')]
     public function create(
         #[MapRequestPayload] ClientPayload $payload,
         EntityManagerInterface $entityManager,
@@ -95,6 +117,8 @@ final class ClientsController extends AbstractController
             return $this->notFound();
         }
 
+        $this->assertCanAccess($client);
+
         $client->setFirstName($payload->firstName);
         $client->setLastName($payload->lastName);
         $client->setEmail($payload->email);
@@ -114,6 +138,7 @@ final class ClientsController extends AbstractController
     }
 
     #[Route('/clients/{id}', name: 'clients_delete', requirements: ['id' => '\d+'], methods: ['DELETE'])]
+    #[IsGranted('ROLE_MANAGER')]
     public function delete(int $id, EntityManagerInterface $entityManager): JsonResponse
     {
         $client = $entityManager->find(Client::class, $id);
@@ -128,7 +153,7 @@ final class ClientsController extends AbstractController
             $entityManager->flush();
         } catch (ForeignKeyConstraintViolationException) {
             return $this->json(
-                ['error' => 'This client is referenced by a rental and cannot be deleted.'],
+                ['error' => 'This client is referenced by a rental or user account and cannot be deleted.'],
                 Response::HTTP_CONFLICT,
             );
         }
@@ -152,5 +177,18 @@ final class ClientsController extends AbstractController
     private function notFound(): JsonResponse
     {
         return $this->json(['error' => 'Client not found.'], Response::HTTP_NOT_FOUND);
+    }
+
+    private function assertCanAccess(Client $client): void
+    {
+        if ($this->isGranted('ROLE_MANAGER')) {
+            return;
+        }
+
+        $user = $this->getUser();
+
+        if (!$user instanceof User || $user->getClient()?->getId() !== $client->getId()) {
+            throw $this->createAccessDeniedException();
+        }
     }
 }

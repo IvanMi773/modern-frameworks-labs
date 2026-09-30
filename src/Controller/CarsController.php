@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class CarsController extends AbstractController
 {
@@ -59,6 +60,7 @@ final class CarsController extends AbstractController
     }
 
     #[Route('/cars', name: 'cars_create', methods: ['POST'])]
+    #[IsGranted('ROLE_MANAGER')]
     public function create(
         #[MapRequestPayload] CarPayload $payload,
         EntityManagerInterface $entityManager,
@@ -92,6 +94,7 @@ final class CarsController extends AbstractController
     }
 
     #[Route('/cars/{id}', name: 'cars_update', requirements: ['id' => '\d+'], methods: ['PUT'])]
+    #[IsGranted('ROLE_MANAGER')]
     public function update(
         int $id,
         #[MapRequestPayload] CarPayload $payload,
@@ -127,6 +130,7 @@ final class CarsController extends AbstractController
     }
 
     #[Route('/cars/{id}', name: 'cars_delete', requirements: ['id' => '\d+'], methods: ['DELETE'])]
+    #[IsGranted('ROLE_MANAGER')]
     public function delete(int $id, EntityManagerInterface $entityManager): JsonResponse
     {
         $car = $entityManager->find(Car::class, $id);

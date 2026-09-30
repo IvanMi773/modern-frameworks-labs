@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use Closure;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
@@ -23,7 +24,7 @@ final class EntitySearchService
      *
      * @return array{items: list<object>, pagination: array{page: int, itemsPerPage: int, totalItems: int, totalPages: int}}
      */
-    public function search(string $entityClass, array $filters, array $query): array
+    public function search(string $entityClass, array $filters, array $query, ?Closure $scope = null): array
     {
         $allowedQueryParameters = ['page', 'itemsPerPage', ...array_keys($filters)];
         $unknownParameters = array_diff(array_keys($query), $allowedQueryParameters);
@@ -56,6 +57,8 @@ final class EntitySearchService
             ->select('e')
             ->from($entityClass, 'e')
             ->orderBy('e.id', 'ASC');
+
+        $scope?->__invoke($queryBuilder);
 
         foreach ($filters as $parameter => $filter) {
             if (!array_key_exists($parameter, $query)) {

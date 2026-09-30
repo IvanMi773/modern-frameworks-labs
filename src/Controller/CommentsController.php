@@ -8,6 +8,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class CommentsController extends AbstractController
 {
@@ -36,6 +37,7 @@ final class CommentsController extends AbstractController
     }
 
     #[Route('/comments', name: 'comments_create', methods: ['POST'])]
+    #[IsGranted('ROLE_MANAGER')]
     public function create(#[MapRequestPayload] CommentPayload $payload): JsonResponse
     {
         $comments = self::COMMENTS;
@@ -52,6 +54,7 @@ final class CommentsController extends AbstractController
     }
 
     #[Route('/comments/{id}', name: 'comments_update', requirements: ['id' => '\d+'], methods: ['PUT'])]
+    #[IsGranted('ROLE_MANAGER')]
     public function update(int $id, #[MapRequestPayload] CommentPayload $payload): JsonResponse
     {
         $comments = self::COMMENTS;
@@ -72,6 +75,7 @@ final class CommentsController extends AbstractController
     }
 
     #[Route('/comments/{id}', name: 'comments_delete', requirements: ['id' => '\d+'], methods: ['DELETE'])]
+    #[IsGranted('ROLE_MANAGER')]
     public function delete(int $id): JsonResponse
     {
         $comments = self::COMMENTS;
