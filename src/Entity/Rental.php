@@ -53,4 +53,34 @@ class Rental
     {
         return $this->id;
     }
+
+    public function getCar(): Car
+    {
+        return $this->car;
+    }
+
+    public function getClient(): Client
+    {
+        return $this->client;
+    }
+
+    public function getStartsAt(): \DateTimeImmutable
+    {
+        return $this->startsAt;
+    }
+
+    public function getEndsAt(): \DateTimeImmutable
+    {
+        return $this->endsAt;
+    }
+
+    public function getDailyRate(): string
+    {
+        return $this->dailyRate;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
 }

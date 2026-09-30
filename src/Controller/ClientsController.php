@@ -4,11 +4,13 @@ namespace App\Controller;
 
 use App\Dto\ClientPayload;
 use App\Entity\Client;
+use App\Service\EntitySearchService;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
@@ -21,6 +23,24 @@ final class ClientsController extends AbstractController
         $clients = $entityManager->getRepository(Client::class)->findBy([], ['id' => 'ASC']);
 
         return $this->json(array_map(fn (Client $client): array => $this->toArray($client), $clients));
+    }
+
+    #[Route('/clients/search', name: 'clients_search', methods: ['GET'])]
+    public function search(Request $request, EntitySearchService $searchService): JsonResponse
+    {
+        $result = $searchService->search(Client::class, [
+            'id' => ['expression' => 'e.id', 'type' => 'integer'],
+            'firstName' => ['expression' => 'e.firstName', 'type' => 'string'],
+            'lastName' => ['expression' => 'e.lastName', 'type' => 'string'],
+            'email' => ['expression' => 'e.email', 'type' => 'string'],
+            'phone' => ['expression' => 'e.phone', 'type' => 'string', 'nullable' => true],
+            'driverLicenseNumber' => ['expression' => 'e.driverLicenseNumber', 'type' => 'string'],
+        ], $request->query->all());
+
+        return $this->json([
+            'items' => array_map(fn (Client $client): array => $this->toArray($client), $result['items']),
+            'pagination' => $result['pagination'],
+        ]);
     }
 
     #[Route('/clients/{id}', name: 'clients_show', requirements: ['id' => '\d+'], methods: ['GET'])]

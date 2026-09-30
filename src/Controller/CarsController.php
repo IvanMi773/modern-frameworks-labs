@@ -5,11 +5,13 @@ namespace App\Controller;
 use App\Dto\CarPayload;
 use App\Entity\Car;
 use App\Entity\VehicleCategory;
+use App\Service\EntitySearchService;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
@@ -22,6 +24,26 @@ final class CarsController extends AbstractController
         $cars = $entityManager->getRepository(Car::class)->findBy([], ['id' => 'ASC']);
 
         return $this->json(array_map(fn (Car $car): array => $this->toArray($car), $cars));
+    }
+
+    #[Route('/cars/search', name: 'cars_search', methods: ['GET'])]
+    public function search(Request $request, EntitySearchService $searchService): JsonResponse
+    {
+        $result = $searchService->search(Car::class, [
+            'id' => ['expression' => 'e.id', 'type' => 'integer'],
+            'categoryId' => ['expression' => 'IDENTITY(e.category)', 'type' => 'integer'],
+            'make' => ['expression' => 'e.make', 'type' => 'string'],
+            'model' => ['expression' => 'e.model', 'type' => 'string'],
+            'registrationNumber' => ['expression' => 'e.registrationNumber', 'type' => 'string'],
+            'modelYear' => ['expression' => 'e.modelYear', 'type' => 'integer'],
+            'dailyRate' => ['expression' => 'e.dailyRate', 'type' => 'decimal'],
+            'status' => ['expression' => 'e.status', 'type' => 'exact'],
+        ], $request->query->all());
+
+        return $this->json([
+            'items' => array_map(fn (Car $car): array => $this->toArray($car), $result['items']),
+            'pagination' => $result['pagination'],
+        ]);
     }
 
     #[Route('/cars/{id}', name: 'cars_show', requirements: ['id' => '\d+'], methods: ['GET'])]

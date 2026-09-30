@@ -47,4 +47,29 @@ class Payment
     {
         return $this->id;
     }
+
+    public function getRental(): Rental
+    {
+        return $this->rental;
+    }
+
+    public function getAmount(): string
+    {
+        return $this->amount;
+    }
+
+    public function getMethod(): string
+    {
+        return $this->method;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function getPaidAt(): ?\DateTimeImmutable
+    {
+        return $this->paidAt;
+    }
 }
